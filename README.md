@@ -1,135 +1,97 @@
-# Capstone-project-1
+# Photo Exposure Calculator
 
-# 📷 Photo Exposure Calculator
+An interactive, browser-based learning tool for exploring the relationship between shutter speed, aperture, ISO, and exposure value (EV).
 
-> An interactive web tool that solves the Exposure Triangle in real time —
-> lock any two of Shutter Speed, Aperture, and ISO, and the third is calculated automatically.
+**Live demo:** https://exposure-calculator.netlify.app/  
+**Source code:** https://github.com/Benz-Kim/Photo-Exposure-Calculator
 
----
+## Why I built it
 
-## 🌟 Background & Motivation
+Photography beginners often learn the exposure triangle as a set of rules to memorize. I wanted to make those relationships easier to explore by letting people change settings, see the calculated exposure value, and compare equivalent combinations in one place.
 
-Perhaps the most common obstacle anyone encounters when first learning digital photography is the **Exposure Triangle**. Understanding intuitively how Shutter Speed, Aperture, and ISO connect with one another takes a considerable amount of time. Simply reading and memorizing a textbook is not enough — and unless you are majoring in photography, sitting through dedicated coursework and lectures is no easy commitment.
+This project combines a practical photography problem with mathematical modeling, JavaScript state management, interface design, and deployment of a static website.
 
-That is why I felt there needed to be a tool that lets people **actually change the numbers and see the results for themselves**.
+## Features
 
-As it happened, I was in the middle of building a web development portfolio at the time, and I was specifically looking for a project that could go beyond simple clone coding — something that implemented real domain knowledge directly in code, demonstrating both **engineering thinking and development ability** at once. The exposure calculator was an idea that naturally bridged the two.
+- **Interactive exposure controls:** Adjust shutter speed, aperture, and ISO with sliders.
+- **Two-parameter locking:** Lock two settings and calculate the third setting automatically.
+- **Exposure-value feedback:** Calculate EV and visualize it on a scale.
+- **Contextual guidance:** Display a rough lighting-context interpretation and warnings for settings such as high ISO, slow shutter speeds, and narrow apertures.
+- **Equivalent-exposure table:** Explore alternative shutter/aperture/ISO combinations for a similar EV, with labels describing likely photographic effects.
+- **Shooting presets:** Start from Sunny, Indoor, Night, Portrait, or Sports settings.
+- **Photo EXIF import:** Read available shutter speed, aperture, and ISO metadata from an uploaded image, then apply the closest supported values to the calculator.
+- **Responsive interface:** Provide a desktop layout and mobile-specific panel navigation.
 
----
+> The lighting guidance is educational and approximate. Actual exposure depends on scene luminance, metering, camera calibration, lens transmission, and creative intent.
 
-## 🎯 Project Overview
+## How the calculation works
 
-**Goal:** Build an interactive web calculator where the user locks any two of the three parameters — Shutter Speed, Aperture, and ISO — and the remaining one is automatically solved using the EV (Exposure Value) formula.
+The calculator uses the exposure-value relationship for ISO 100:
 
-### Core Formula
+EV = log₂(N² / t) − log₂(ISO / 100)
 
-```
-EV = log₂(N² / t) - log₂(ISO / 100)
-```
+Where:
 
-| Variable | Description |
-|---|---|
-| `N` | Aperture f-number |
-| `t` | Shutter speed (seconds) |
-| `ISO` | Sensor sensitivity |
+- N is the aperture f-number.
+- t is shutter time in seconds.
+- ISO is sensor sensitivity.
 
-### Key Features
+The application stores supported settings in discrete arrays. When a computed value does not exactly match a supported setting, it maps the result to the nearest available value. This makes the interface practical to use, while meaning the displayed settings may only approximate the mathematically exact solution.
 
-- 🔒 **Lock 2 of 3 parameters** → auto-solve the third via inverse calculation
-- 📊 **EV bar visualization** mapped across a 0–20 spectrum
-- 🌤 **Context-aware descriptions** for shooting environment (night, indoor, outdoor, etc.)
-- ⚡ **5 shooting presets** — Sunny / Indoor / Night / Portrait / Sports
-- 📋 **Equivalent exposure table** with characteristic tags (Motion Blur / Freeze / Bokeh)
+## Technology
 
----
+- HTML
+- CSS
+- Vanilla JavaScript
+- Browser APIs
+- [exifr](https://github.com/MikeKovarik/exifr) loaded from jsDelivr when EXIF import is used
 
-## 🛠 Tech Stack
+The calculator does not require a framework, package installation, or a build step. The EXIF feature loads its parser on demand from a CDN.
 
-```
-index.html   — Structure
-style.css    — Styling
-script.js    — Calculation logic & UI interactions
-```
+## Run locally
 
-- Vanilla HTML / CSS / JavaScript (no frameworks, no libraries)
-- Canvas API
-- Responsive design (desktop & mobile)
+1. Clone or download this repository.
+2. Keep the HTML, CSS, JavaScript, and asset files in their repository-relative locations.
+3. Open index.html in a modern browser. It redirects to exposure-index.html.
+4. Alternatively, open exposure-index.html directly.
 
----
+No build command is required for this static site.
 
-## ⚙️ Development Process
+## Project structure
 
-### ① Design Phase
+- index.html — entry-point redirect.
+- exposure-index.html — page structure and interface.
+- exposure-style.css — visual styling and responsive layout.
+- exposure-script.js — exposure calculations, interaction state, presets, guidance, equivalent combinations, mobile UI, and EXIF import.
+- netlify.toml — Netlify publish and root-route configuration.
+- favicon.svg and other assets — interface assets.
 
-The core design challenge was structuring the logic for *"automatically solving one of three interdependent variables."* Unlike a one-directional calculator, this required real-time tracking of which variables were locked, with a hard constraint that **exactly two must always be locked**. Defining this state management structure before writing any code was the most critical planning step.
+## Deployment
 
-### ② Calculation Logic
+The site is configured for Netlify as a static website. The repository's netlify.toml sets the publish directory to the repository root and rewrites the root route to /exposure-index.html.
 
-The EV formula was implemented using JavaScript's `Math.log2()`. Inverse calculation was branched based on which parameter was unlocked:
+Live deployment: https://exposure-calculator.netlify.app/
 
-```js
-// Solving for Shutter Speed
-t = N² / 2^(EV + log₂(ISO / 100))
+## Development notes
 
-// Solving for Aperture
-N = √(2^(EV + log₂(ISO / 100)) × t)
-```
+The project evolved from a single-file prototype into separate HTML, CSS, and JavaScript files. That refactor made the code easier to navigate, but also surfaced the importance of consistent file paths and names. The current entry-point redirect and Netlify rewrite are intended to keep the deployed root URL working with the existing page filename.
 
-Since the sliders operate on **discrete arrays** rather than continuous values, a nearest-index search was implemented to map each calculated result to the closest available value.
+The next improvement phase should prioritize repeatable validation: verify calculations and lock-state behavior, test EXIF files with missing metadata, check mobile and desktop layouts, and record the results in the project documentation before describing those checks as completed.
 
-### ③ UI Design
+## Limitations and next steps
 
-The three parameter panels were laid out symmetrically so that locking and unlocking any of them felt natural and consistent. When a panel was unlocked (being auto-calculated), a **background color shift** and a `CALCULATING` label provided clear visual feedback about the current state.
+- Lighting-context descriptions are heuristics, not a replacement for a camera light meter.
+- The calculator maps results to discrete supported values rather than presenting arbitrary continuous values.
+- EXIF import depends on metadata being present in the image and on the external parser CDN being reachable.
+- Add automated checks for calculation edge cases and the invariant that exactly two parameters are locked.
+- Add a documented manual test checklist and record browser/device coverage.
+- Review accessibility, including keyboard navigation, visible focus, semantic labels, and screen-reader feedback.
+- Consider adding a clear privacy note for image metadata processing and verifying whether image bytes remain local throughout EXIF parsing.
 
-### ④ File Architecture Separation
+## Learning outcomes
 
-The project was initially developed as a single HTML file, then refactored into three separate files: `index.html`, `style.css`, and `script.js`. During this process, a path mismatch bug caused the files to fail to link correctly — debugging this firsthand gave practical experience with how browsers resolve relative file paths and the importance of **consistent naming conventions**.
-
-### ⑤ Extended Features
-
-After completing the core calculator, an equivalent exposure combination table was added. For a given EV, the table generates multiple valid combinations across different ISO and aperture settings, and tags each with its photographic characteristic so the user can pick the right setting for their shooting intention.
-
----
-
-## 📈 Results
-
-### Technical Outcomes
-
-- ✅ Implemented the full EV inverse calculation formula in JavaScript with **zero library dependencies**
-- ✅ Completed a stable 3-parameter lock state manager that always guarantees exactly two parameters are locked
-- ✅ Applied a separated HTML / CSS / JS file architecture, gaining practical experience with modular code organization
-- ✅ Implemented responsive design — functions correctly on both desktop and mobile
-
-### Key Learnings
-
-- Practical application of JS math functions (`Math.log2`, `Math.pow`, `Math.sqrt`) in a physics-based context
-- Nearest-value mapping between continuous inverse-calculated results and discrete slider arrays
-- Designing state that simultaneously affects multiple UI elements without inconsistency
-- The critical importance of file path management in a multi-file architecture
-
-### Portfolio Value
-
-This project goes beyond a typical calculator exercise by implementing a **real domain-specific formula** — the Exposure Value equation — directly in code. It demonstrates the ability to bridge engineering understanding and software development. The inverse calculation logic in particular showcases mathematical thinking applied directly to a practical programming problem.
+This project has provided practice in translating a domain formula into interactive software, coordinating UI state across multiple controls, handling discrete numeric ranges, parsing image metadata, designing a responsive interface, and deploying a static application.
 
 ---
 
-## 📁 File Structure
-
-```
-exposure-calculator/
-├── index.html          # HTML structure
-├── exposure-style.css  # Styles
-└── exposure-script.js  # Calculation logic & DOM interactions
-```
-
----
-
-## 🚀 Getting Started
-
-1. Download all three files into the **same folder**
-2. Open `index.html` in any modern browser
-3. No installation or build step required
-
----
-
-*Built as part of a web development portfolio — combining domain knowledge in digital photography with hands-on JavaScript development.*
+*Built as an independent web-development and photography-learning project.*
