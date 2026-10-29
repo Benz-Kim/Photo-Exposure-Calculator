@@ -38,7 +38,7 @@ This log is intended to preserve the project's real development history and deci
 - Connected the original page to the solver and added a separate reference EV100 control. The interface now reports quantization residuals instead of claiming exact equivalence.
 - Improved EXIF handling for partial camera metadata, CDN loading failures and untrusted error messages.
 - Added unit tests, simulated-browser integration tests, and GitHub Actions.
-- Recorded [CI run #40869486242](https://github.com/Benz-Kim/Photo-Exposure-Calculator/actions/runs/40869486242), which reported 18 passing tests and no failures on the feature branch at commit `3860a384`.
+- Recorded [CI run #40869977667](https://github.com/Benz-Kim/Photo-Exposure-Calculator/actions/runs/40869977667), which reported 20 passing tests and no failures on the feature branch at commit `d7c6ac78`.
 - Documented mathematical assumptions and the actual commit sequence in [ENGINEERING_RATIONALE.md](ENGINEERING_RATIONALE.md) and [CHANGE_BREAKPOINTS.md](CHANGE_BREAKPOINTS.md).
 - **Status:** all changes are on [Draft PR #1](https://github.com/Benz-Kim/Photo-Exposure-Calculator/pull/1). CI success confirms only automated test coverage; no completed real-device, screen-reader, or camera-original EXIF report is yet recorded.
 - **Provenance:** this improvement pass includes AI-assisted code changes. Student review and reproduction are needed before making authorship or impact claims in an application.
