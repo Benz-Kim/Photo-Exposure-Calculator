@@ -357,12 +357,25 @@ function applyPreset(name) {
 
 let exifPending = null;
 
+let exifLoading = false;
+let exifWaiting = [];
+
+// One script request for concurrent imports; failed CDN loads are recoverable.
 function loadExifLib(callback) {
-  if (window.exifr) { callback(); return; }
-  const s = document.createElement('script');
-  s.src = 'https://cdn.jsdelivr.net/npm/exifr/dist/lite.umd.js';
-  s.onload = callback;
-  document.head.appendChild(s);
+  if (window.exifr) { callback(null); return; }
+  exifWaiting.push(callback);
+  if (exifLoading) return;
+  exifLoading = true;
+  const script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/npm/exifr/dist/lite.umd.js';
+  const finish = (err) => {
+    exifLoading = false;
+    const callbacks = exifWaiting.splice(0);
+    callbacks.forEach(fn => fn(err));
+  };
+  script.onload = () => finish(window.exifr ? null : new Error('EXIF 파서를 사용할 수 없습니다.'));
+  script.onerror = () => finish(new Error('EXIF 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하고 다시 시도해주세요.'));
+  document.head.appendChild(script);
 }
 
 function formatShutter(val) {
@@ -372,7 +385,7 @@ function formatShutter(val) {
 }
 
 async function loadExif(input) {
-  const file = input.files[0];
+  const file = input.files && input.files[0];
   if (!file) return;
 
   const filenameEl = document.getElementById('exif-filename');
@@ -388,14 +401,15 @@ async function loadExif(input) {
   applyBtn.style.display = 'none';
   exifPending = null;
 
-  loadExifLib(async function() {
+  loadExifLib(async function(loadError) {
     try {
+      if (loadError) throw loadError;
       // 옵션 없이 전체 파싱 → 가장 호환성 높음
       const exif = await window.exifr.parse(file);
 
-      const fnum  = exif && exif.FNumber     != null ? exif.FNumber     : null;
-      const etime = exif && exif.ExposureTime != null ? exif.ExposureTime : null;
-      const iso   = exif && exif.ISO         != null ? exif.ISO         : null;
+      const fnum = Number.isFinite(exif?.FNumber) && exif.FNumber > 0 ? exif.FNumber : null;
+      const etime = Number.isFinite(exif?.ExposureTime) && exif.ExposureTime > 0 ? exif.ExposureTime : null;
+      const iso = Number.isFinite(exif?.ISO) && exif.ISO > 0 ? exif.ISO : null;
 
       const hasExif = fnum != null || etime != null || iso != null;
 
@@ -406,11 +420,13 @@ async function loadExif(input) {
 
       // 슬라이더 인덱스 매핑
       let sIdx = null, aIdx = null, iIdx = null;
-      if (etime != null) sIdx = SHUTTERS.reduce((b,s,i)  => Math.abs(s.val - etime) < Math.abs(SHUTTERS[b].val - etime)    ? i : b, 0);
-      if (fnum  != null) aIdx = APERTURES.reduce((b,a,i) => Math.abs(a.val - fnum)  < Math.abs(APERTURES[b].val - fnum)    ? i : b, 0);
-      if (iso   != null) iIdx = ISOS.reduce((b,v,i)      => Math.abs(v - iso)        < Math.abs(ISOS[b] - iso)             ? i : b, 0);
+      if (etime != null) sIdx = ExposureCore.nearestIndex(SHUTTERS, etime);
+      if (fnum != null) aIdx = ExposureCore.nearestIndex(APERTURES, fnum);
+      if (iso != null) iIdx = ExposureCore.nearestIndex(ISOS, iso);
 
-      exifPending = { sIdx, aIdx, iIdx };
+      // Never combine partial EXIF with stale values from an earlier setting.
+      const complete = sIdx != null && aIdx != null && iIdx != null;
+      exifPending = complete ? { sIdx, aIdx, iIdx } : null;
 
       chipsEl.innerHTML = `
         <div class="exif-chip"><span>셔터속도</span>${sIdx != null ? SHUTTERS[sIdx].label : '—'}</div>
@@ -424,11 +440,13 @@ async function loadExif(input) {
       if (iso   != null) rawParts.push('ISO ' + iso);
       msgEl.textContent = rawParts.length ? '📸 원본 EXIF: ' + rawParts.join('  ·  ') : '';
 
-      applyBtn.style.display = 'inline-block';
+      applyBtn.style.display = complete ? 'inline-block' : 'none';
+      if (!complete) msgEl.textContent += ' · 촬영 정보가 일부 누락되어 설정을 적용할 수 없습니다.';
 
     } catch (err) {
       console.error(err);
-      chipsEl.innerHTML = '<span class="exif-error">⚠ EXIF를 읽는 중 오류가 발생했어요.<br><small style="font-size:0.62rem;color:var(--text-dim);">' + (err.message || String(err)) + '</small></span>';
+      // Error messages must not be interpolated into innerHTML.
+      chipsEl.textContent = '⚠ EXIF를 읽지 못했습니다. ' + (err.message || '다른 사진으로 시도해주세요.');
     }
   });
 }
