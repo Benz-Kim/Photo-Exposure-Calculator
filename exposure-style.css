@@ -1585,3 +1585,6 @@ input[type=range]:not(:disabled)::-webkit-slider-thumb:hover {
 @media (max-width: 640px) {
   .target-ev-panel { padding: 18px 20px; margin-bottom: 80px; }
 }
+
+/* Show the approximation error for each equivalent-exposure candidate. */
+.ev-delta { display: inline-block; margin-left: 6px; color: var(--text-dim); font-size: .67rem; white-space: nowrap; }
