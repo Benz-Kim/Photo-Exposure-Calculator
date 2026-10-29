@@ -14,41 +14,41 @@ The revised program must keep exactly two parameters user-adjustable at all time
 
 The camera-settings EV100 is
 
-\[
+$
 EV_{100} = \log_2\left(\frac{N^2}{t}\right) - \log_2\left(\frac{S}{100}\right)
-\]
+$
 
 where:
 
-- \(N\) = aperture f-number (positive).
-- \(t\) = exposure duration in seconds (positive).
-- \(S\) = ISO setting (positive).
+- $N$ = aperture f-number (positive).
+- $t$ = exposure duration in seconds (positive).
+- $S$ = ISO setting (positive).
 
 This can be rearranged without approximation:
 
-\[
+$
 2^{EV_{100}} = \frac{100N^2}{tS}
-\]
+$
 
 Solving each parameter individually:
 
 **Shutter duration**
 
-\[
+$
 t = \frac{100N^2}{S\,2^{EV_{100}}}
-\]
+$
 
 **Aperture**
 
-\[
+$
 N = \sqrt{\frac{tS}{100}\,2^{EV_{100}}}
-\]
+$
 
 **ISO**
 
-\[
+$
 S = \frac{100N^2}{t\,2^{EV_{100}}}
-\]
+$
 
 These inverses are implemented in \`exposure-core.js\`. They are valid for positive finite settings and a finite EV. Invalid values raise errors rather than silently propagating \`NaN\` or \`Infinity\`.
 
@@ -56,9 +56,9 @@ These inverses are implemented in \`exposure-core.js\`. They are valid for posit
 
 For f/16, 1/100 s, ISO 100:
 
-\[
+$
 EV_{100} = \log_2(25600) \approx 14.64
-\]
+$
 
 This is a check of arithmetic, **not** a prediction that the picture must be correctly exposed.
 
@@ -66,19 +66,19 @@ This is a check of arithmetic, **not** a prediction that the picture must be cor
 
 Cameras commonly expose a discrete choice of shutter speeds, f-numbers, and ISO settings. Therefore an algebraically exact result may not be selectable.
 
-Given an exact positive solution \(x\) and candidate setting values \(v_j\), we choose:
+Given an exact positive solution $x$ and candidate setting values $v_j$, we choose:
 
-\[
+$
 j^* = \arg\min_j \left|\log_2(v_j/x)\right|
-\]
+$
 
-This logarithmic, **stop-based** distance is more appropriate than \(|v_j-x|\) because photographic settings change approximately by ratios rather than constant linear differences. As a counterexample, for candidates 100 and 200, a target of 145 is closer to 100 in ordinary absolute distance, but closer to 200 in logarithmic stop distance.
+This logarithmic, **stop-based** distance is more appropriate than $|v_j-x|$ because photographic settings change approximately by ratios rather than constant linear differences. As a counterexample, for candidates 100 and 200, a target of 145 is closer to 100 in ordinary absolute distance, but closer to 200 in logarithmic stop distance.
 
 After selecting the nearest candidate, the program recomputes the realized EV100 and the residual:
 
-\[
+$
 \Delta EV = EV_{\text{realized}} - EV_{\text{target}}
-\]
+$
 
 A nonzero residual is an expected result of quantization, not automatically an arithmetic bug. The interface indicates differences of at least 0.05 stop and flags settings that fall outside the selectable range.
 
@@ -95,9 +95,9 @@ The state contains:
 
 The lock-state invariant is:
 
-\[
+$
 \sum_{k \in \{\mathrm{shutter},\mathrm{aperture},\mathrm{iso}\}}[\mathrm{locks}[k]] = 2
-\]
+$
 
 Transitions are implemented in \`transitionLocks\`, a pure function that returns a new lock state. It does not mutate the previous state.
 
