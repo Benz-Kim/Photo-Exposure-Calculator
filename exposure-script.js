@@ -86,6 +86,10 @@ function solveAutoParameter() {
 // ── 4. UI 업데이트 ──
 function updateUI() {
   solveAutoParameter();
+  const targetSlider = document.getElementById('sl-target-ev');
+  const targetLabel = document.getElementById('target-ev-value');
+  if (targetSlider) targetSlider.value = targetEV.toFixed(1);
+  if (targetLabel) targetLabel.textContent = targetEV.toFixed(1);
   document.getElementById('sl-shutter').value  = idx.shutter;
   document.getElementById('sl-aperture').value = idx.aperture;
   document.getElementById('sl-iso').value      = idx.iso;
@@ -315,6 +319,16 @@ window.addEventListener('resize', function() {
 
 
 // ── 7. 이벤트 핸들러 ──
+
+// Changing the reference EV intentionally changes desired brightness;
+// changing a locked camera parameter instead holds the reference EV steady.
+function onTargetEVChange() {
+  const slider = document.getElementById('sl-target-ev');
+  const value = Number(slider.value);
+  if (!Number.isFinite(value)) return;
+  targetEV = Math.max(-5, Math.min(20, value));
+  updateUI();
+}
 
 function onSliderChange(key) {
   if (!locks[key]) return;
