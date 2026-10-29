@@ -115,3 +115,27 @@ test("EXIF CDN failure gives a recoverable message instead of hanging", async ()
   await new Promise(resolve => setImmediate(resolve));
   assert.ok(app.document.getElementById("exif-chips").textContent.includes("불러오지 못했습니다"));
 });
+
+
+test("target EV slider changes reference and re-solves the automatic parameter", () => {
+  const app = makeApp();
+  const previous = app.state();
+  app.document.getElementById("sl-target-ev").value = "12.0";
+  app.run("onTargetEVChange()");
+  const changed = app.state();
+  assert.equal(changed.targetEV, 12);
+  assert.notEqual(changed.targetEV, previous.targetEV);
+  assert.ok(Number.isFinite(changed.solveMeta.actualEV));
+  assert.equal(app.document.getElementById("target-ev-value").textContent, "12.0");
+});
+
+test("equivalent exposure rows report bounded quantization residuals", () => {
+  const app = makeApp();
+  const markup = app.document.getElementById("combo-tbody").innerHTML;
+  const deltas = [...markup.matchAll(/ΔEV ([+-]?[0-9]+\.[0-9]+)/g)]
+    .map(match => Number(match[1]));
+  assert.ok(deltas.length > 0, "At least one equivalent exposure row should be shown");
+  for (const delta of deltas) {
+    assert.ok(Math.abs(delta) <= 0.5, "Displayed EV residual must not exceed half a stop");
+  }
+});
