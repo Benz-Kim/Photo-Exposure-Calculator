@@ -4,7 +4,7 @@ This document separates planned checks from verified results. A checkbox should 
 
 ## Verified automated checks — 2026-10-29
 
-A GitHub Actions run on the feature branch completed successfully: [CI run #40869486242](https://github.com/Benz-Kim/Photo-Exposure-Calculator/actions/runs/40869486242).
+A GitHub Actions run on the feature branch completed successfully: [CI run #40869977667](https://github.com/Benz-Kim/Photo-Exposure-Calculator/actions/runs/40869977667).
 
 **Evidence:** 18 automated tests passed, 0 failed. Tests ran under Node.js 22 in GitHub Actions; browser behavior was simulated for integration checks. The test runner also performed syntax checks on `exposure-core.js` and `exposure-script.js`.
 
@@ -65,7 +65,7 @@ These checks are **not** evidence that the app passed real-camera EXIF samples, 
 
 | Date | Version / commit | Environment | Checks performed | Result / issues |
 |---|---|---|---|---|
-| 2026-10-29 | Feature PR #1 / commit `3860a384` | GitHub Actions, Node.js 22 | Syntax + 18 unit/integration tests | **Pass: 18 / Fail: 0** — [run](https://github.com/Benz-Kim/Photo-Exposure-Calculator/actions/runs/40869486242) |
+| 2026-10-29 | Feature PR #1 / commit `d7c6ac78` | GitHub Actions, Node.js 22 | Syntax + 20 unit/integration tests | **Pass: 20 / Fail: 0** — [run](https://github.com/Benz-Kim/Photo-Exposure-Calculator/actions/runs/40869977667) |
 
 ## Reporting standard
 
