@@ -43,13 +43,13 @@ const APERTURES = [
 const ISOS = [100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600, 51200];
 
 const EV_SITUATIONS = [
-  { max: 1,  text: '🌑 완전한 어둠 — 장노출 필수',        status: '매우 어두움' },
-  { max: 4,  text: '🌃 야간 거리 / 촛불 환경',            status: '어두운 환경' },
-  { max: 7,  text: '🌆 야경, 실내 저조도',                status: '저조도'      },
-  { max: 10, text: '💡 실내 밝은 조명 / 흐린 야외',       status: '실내 환경'   },
-  { max: 13, text: '⛅ 맑은 날 그늘 / 흐린 날 야외',      status: '일반 야외'   },
-  { max: 16, text: '☀️ 맑은 날 직사광선 야외',            status: '밝은 야외'   },
-  { max: 20, text: '🏔 설원 / 해변 직사광선',             status: '매우 밝음'   },
+  { max: 1,  text: 'Very dark scenes / long exposures',        status: 'Very dark' },
+  { max: 4,  text: 'Night streets / candlelight',            status: 'Dark' },
+  { max: 7,  text: 'City nights / dim interiors',                status: 'Low light'      },
+  { max: 10, text: 'Bright interiors / overcast outdoors',       status: 'Indoor light'   },
+  { max: 13, text: 'Open shade / cloudy daylight',      status: 'Daylight'   },
+  { max: 16, text: 'Direct sunlight',            status: 'Bright daylight'   },
+  { max: 20, text: 'Sunlit snow / bright beaches',             status: 'Very bright'   },
 ];
 
 const PRESETS = {
@@ -71,6 +71,7 @@ let targetEV = ExposureCore.calculateEV(
   SHUTTERS[idx.shutter].val, APERTURES[idx.aperture].val, ISOS[idx.iso]
 );
 let solveMeta = null;
+let activePreset = null;
 
 // ── 3. Pure EV model integration ──
 function calcEV(s, a, i) {
@@ -96,21 +97,24 @@ function updateUI() {
 
   document.getElementById('val-shutter').textContent  = SHUTTERS[idx.shutter].label;
   document.getElementById('val-aperture').textContent = APERTURES[idx.aperture].label;
-  document.getElementById('val-iso').textContent      = 'ISO ' + ISOS[idx.iso].toLocaleString();
+  document.getElementById('val-iso').textContent      = 'ISO ' + ISOS[idx.iso].toLocaleString('en-US');
 
   ['shutter', 'aperture', 'iso'].forEach(k => {
     const panel  = document.getElementById('panel-' + k);
     const btn    = document.getElementById('lock-' + k);
     const slider = document.getElementById('sl-' + k);
+    btn.setAttribute('aria-pressed', String(!locks[k]));
+    btn.setAttribute('aria-label', locks[k] ? 'Calculate ' + k + ' automatically' : k + ' is automatic. Switch to manual');
+    slider.setAttribute('aria-valuetext', k === 'shutter' ? SHUTTERS[idx[k]].label + ' seconds' : k === 'aperture' ? APERTURES[idx[k]].label : 'ISO ' + ISOS[idx[k]]);
     if (locks[k]) {
       panel.classList.remove('locked');
       btn.classList.add('active');
-      btn.textContent = '🔒';
+      btn.textContent = 'Manual';
       slider.disabled = false;
     } else {
       panel.classList.add('locked');
       btn.classList.remove('active');
-      btn.textContent = '🔓';
+      btn.textContent = 'Auto';
       slider.disabled = true;
     }
   });
@@ -123,12 +127,21 @@ function updateUI() {
   document.getElementById('ev-marker').style.left   = pct + '%';
 
   const sit = EV_SITUATIONS.find(s => ev <= s.max) || EV_SITUATIONS[EV_SITUATIONS.length - 1];
-  document.getElementById('ev-situation').textContent = '참고 장면: ' + sit.text + ' (실제 밝기 측정값 아님)';
+  document.getElementById('ev-situation').textContent = 'Typical context: ' + sit.text + ' (not a light-meter reading)';
   document.getElementById('ev-status').textContent = Math.abs(solveMeta.residualEV) >= 0.05
-    ? '설정 EV100 · 목표와 ' + Math.abs(solveMeta.residualEV).toFixed(2)
-      + '스톱 차이' + (solveMeta.rangeLimited ? ' (설정 범위 제한)' : '')
-    : '설정 EV100 · 목표 유지';
+    ? 'EV100 · reference differs by ' + Math.abs(solveMeta.residualEV).toFixed(2)
+      + ' stops' + (solveMeta.rangeLimited ? ' (camera limit)' : '')
+    : 'EV100 · reference maintained';
 
+  for (const name of Object.keys(PRESETS)) {
+    const button = document.getElementById('preset-' + name);
+    if (button) button.setAttribute('aria-pressed', String(name === activePreset));
+  }
+  const viewfinderValues = { shutter: SHUTTERS[idx.shutter].label + ' s', aperture: APERTURES[idx.aperture].label, iso: 'ISO ' + ISOS[idx.iso].toLocaleString('en-US') };
+  for (const key of Object.keys(viewfinderValues)) {
+    const label = document.getElementById('vf-' + key);
+    if (label) label.textContent = viewfinderValues[key];
+  }
   updateCombos(ev);
   updateJudge(ev);
   updateMobileUI(ev);
@@ -152,11 +165,11 @@ function updateCombos(ev) {
       // Do not call a combination "equivalent" when rounding exceeds 0.5 stop.
       if (Math.abs(deltaEV) > 0.5) return;
       let tag = '';
-      if      (t >= 1/30)   tag = '<span class="tag tag-motion">모션블러</span>';
-      else if (t <= 1/1000) tag = '<span class="tag tag-freeze">순간포착</span>';
-      else if (ap <= 2.8)   tag = '<span class="tag tag-portrait">아웃포커싱</span>';
-      else if (ap >= 11)    tag = '<span class="tag tag-landscape">풍경</span>';
-      combos.push({ shutter: SHUTTERS[si].label, aperture: 'f/' + ap, iso: iso.toLocaleString(), tag, deltaEV });
+      if      (t >= 1/30)   tag = '<span class="tag tag-motion">Motion blur</span>';
+      else if (t <= 1/1000) tag = '<span class="tag tag-freeze">Freeze action</span>';
+      else if (ap <= 2.8)   tag = '<span class="tag tag-portrait">Soft background</span>';
+      else if (ap >= 11)    tag = '<span class="tag tag-landscape">Deep focus</span>';
+      combos.push({ shutter: SHUTTERS[si].label, aperture: 'f/' + ap, iso: iso.toLocaleString('en-US'), tag, deltaEV });
     });
   });
 
@@ -169,7 +182,7 @@ function updateCombos(ev) {
 
   const cS = SHUTTERS[idx.shutter].label;
   const cA = APERTURES[idx.aperture].label;
-  const cI = ISOS[idx.iso].toLocaleString();
+  const cI = ISOS[idx.iso].toLocaleString('en-US');
 
   tbody.innerHTML = filtered.map(c => {
     const active = c.shutter === cS && c.aperture === cA && c.iso === cI;
@@ -189,13 +202,13 @@ function updateJudge(ev) {
   // Without scene luminance, over/underexposure cannot be determined.
   const icon = '◎';
   const panelClass = 'judge-level-ok';
-  const title = '카메라 설정 EV100';
-  const desc = '현재 셔터 속도, 조리개, ISO 조합의 설정 EV입니다. 실제 사진의 노출이 적절한지는 장면 밝기와 측광 결과를 함께 확인해야 합니다.';
+  const title = 'Settings tell part of the story.';
+  const desc = 'EV100 describes your shutter, aperture and ISO combination. Actual exposure depends on scene brightness and your camera’s meter.';
   const envText = ev < 5
-    ? '낮은 EV 설정은 어두운 장면에서 자주 사용되지만, 적절한 노출을 보장하지는 않습니다.'
+    ? 'Lower EV settings are often used in dim scenes. Check your light meter before shooting.'
     : ev < 12
-      ? '중간 EV 설정입니다. 촬영 환경과 카메라의 노출계를 함께 확인하세요.'
-      : '높은 EV 설정은 밝은 장면에서 자주 사용되지만, 적절한 노출을 보장하지는 않습니다.';
+      ? 'A mid-range EV setting. Use your light meter to match it to the scene.'
+      : 'Higher EV settings are often used in bright scenes. Check your light meter before shooting.';
 
   const needlePct = Math.min(100, Math.max(0, (ev / 20) * 100));
   document.getElementById('judge-needle').style.left = needlePct + '%';
@@ -212,27 +225,27 @@ function updateJudge(ev) {
   // ── ISO 노이즈 경고 ──
   // 블로그 기준: 주간 ISO 100~400 충분, 일몰·야간 400~800, 심야 고ISO
   if (iVal >= 12800) {
-    warnings.push('△ ISO ' + iVal.toLocaleString() + ' — 높은 ISO에서는 카메라와 촬영 조건에 따라 노이즈가 증가할 수 있습니다.');
+    warnings.push('△ ISO ' + iVal.toLocaleString('en-US') + ' — higher ISO may increase visible noise, depending on your camera and conditions.');
   } else if (iVal >= 3200) {
-    warnings.push('△ ISO ' + iVal.toLocaleString() + ' — 노이즈가 생길 수 있어요. 조리개를 더 열거나 셔터를 느리게 하면 ISO를 낮출 수 있어요.');
+    warnings.push('△ ISO ' + iVal.toLocaleString('en-US') + ' — consider a wider aperture or slower shutter if you want to lower ISO.');
   }
 
-  // ── 셔터 속도 경고 ──
+  // ── Shutter speed guidance ──
   // 핵심: sVal은 초 단위 — 느린 셔터(긴 시간)일수록 값이 크다
   // 30초=30, 1/30초=0.033, 1/1000초=0.001
   // 버그 수정: >= 로 비교해야 "느린 셔터"를 잡을 수 있음
   if (sVal >= 1) {
-    warnings.push('△ 셔터 ' + SHUTTERS[idx.shutter].label + ' — 장노출입니다. 손떨림과 피사체 움직임에 주의하고, 필요하면 삼각대를 사용하세요.');
+    warnings.push('Shutter ' + SHUTTERS[idx.shutter].label + ' — a long exposure. Watch for camera shake and subject motion; use a tripod when needed.');
   } else if (sVal >= 1/30) {
-    warnings.push('⚠ 셔터 ' + SHUTTERS[idx.shutter].label + ' — 느린 셔터로 손떨림이 생길 수 있어요. 삼각대를 사용하거나 단단히 고정하세요. 움직이는 피사체는 흐릿하게 찍혀요.');
+    warnings.push('Shutter ' + SHUTTERS[idx.shutter].label + ' — a slow shutter can blur moving subjects. Stabilize your camera or use a tripod.');
   } else if (sVal >= 1/60) {
-    warnings.push('△ 셔터 ' + SHUTTERS[idx.shutter].label + ' — 손으로 들고 찍을 때 살짝 흔들릴 수 있어요. 숨을 참고 카메라를 몸에 밀착하거나, 손떨림 방지(OIS) 기능을 켜세요.');
+    warnings.push('Shutter ' + SHUTTERS[idx.shutter].label + ' — handheld shake is possible. Steady the camera or use image stabilization.');
   }
   // 1/125 이상 빠른 셔터: 경고 없음 (일반 핸드헬드 촬영에 안전)
 
-  // ── 조리개 회절 경고 ──
+  // ── Aperture diffraction guidance ──
   if (aVal >= 16) {
-    warnings.push('△ 조리개 ' + APERTURES[idx.aperture].label + ' — 회절에 따른 선명도 저하는 센서와 렌즈에 따라 달라질 수 있습니다.');
+    warnings.push('Aperture ' + APERTURES[idx.aperture].label + ' — diffraction may reduce sharpness, depending on your lens and sensor.');
   }
 
   document.getElementById('judge-warnings').innerHTML = warnings.map(w =>
@@ -251,7 +264,10 @@ function switchMobileTab(key) {
   // 탭 버튼 활성화
   ['shutter', 'aperture', 'iso'].forEach(k => {
     const tab = document.getElementById('mpn-' + k);
-    if (tab) tab.classList.toggle('active', k === key);
+    if (tab) {
+      tab.classList.toggle('active', k === key);
+      tab.setAttribute('aria-pressed', String(k === key));
+    }
   });
 
   // 패널 표시/숨김
@@ -269,7 +285,7 @@ function updateMobileUI(ev) {
   const mIso      = document.getElementById('mpn-val-iso');
   if (mShutter)  mShutter.textContent  = SHUTTERS[idx.shutter].label;
   if (mAperture) mAperture.textContent = APERTURES[idx.aperture].label;
-  if (mIso)      mIso.textContent      = ISOS[idx.iso].toLocaleString();
+  if (mIso)      mIso.textContent      = ISOS[idx.iso].toLocaleString('en-US');
 
   // 잠금 해제된 탭에 calculating 클래스
   ['shutter', 'aperture', 'iso'].forEach(k => {
@@ -295,7 +311,7 @@ function updateMobileUI(ev) {
   // Scene brightness is unknown: avoid a false exposure verdict.
   bar.className = 'mobile-bottom-bar mbb-ok';
   if (iconEl) iconEl.textContent = 'EV';
-  if (textEl) textEl.textContent = '설정 EV100 · 실제 노출은 장면에 따라 다름';
+  if (textEl) textEl.textContent = 'Settings EV100. Actual exposure depends on the scene.';
 }
 
 /** 모바일 초기화 */
@@ -328,6 +344,7 @@ window.addEventListener('resize', function() {
 // Changing the reference EV intentionally changes desired brightness;
 // changing a locked camera parameter instead holds the reference EV steady.
 function onTargetEVChange() {
+  activePreset = null;
   const slider = document.getElementById('sl-target-ev');
   const value = Number(slider.value);
   if (!Number.isFinite(value)) return;
@@ -336,6 +353,7 @@ function onTargetEVChange() {
 }
 
 function onSliderChange(key) {
+  activePreset = null;
   if (!locks[key]) return;
   idx[key] = parseInt(document.getElementById('sl-' + key).value, 10);
   updateUI();
@@ -346,9 +364,18 @@ function toggleLock(key) {
   updateUI();
 }
 
+function resetCalculator() {
+  activePreset = null;
+  locks = { shutter: true, aperture: true, iso: false };
+  idx = { shutter: 12, aperture: 5, iso: 3 };
+  targetEV = calcEV(SHUTTERS[idx.shutter].val, APERTURES[idx.aperture].val, ISOS[idx.iso]);
+  updateUI();
+}
+
 function applyPreset(name) {
   const p = PRESETS[name];
   if (!p) return;
+  activePreset = name;
   locks        = { shutter: true, aperture: true, iso: false };
   idx.shutter  = p.shutter;
   idx.aperture = p.aperture;
@@ -378,8 +405,8 @@ function loadExifLib(callback) {
     const callbacks = exifWaiting.splice(0);
     callbacks.forEach(fn => fn(err));
   };
-  script.onload = () => finish(window.exifr ? null : new Error('EXIF 파서를 사용할 수 없습니다.'));
-  script.onerror = () => finish(new Error('EXIF 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하고 다시 시도해주세요.'));
+  script.onload = () => finish(window.exifr ? null : new Error('The metadata reader is unavailable.'));
+  script.onerror = () => finish(new Error('Could not load the metadata reader. Check your connection and choose the photo again.'));
   document.head.appendChild(script);
 }
 
@@ -401,7 +428,7 @@ async function loadExif(input) {
 
   filenameEl.textContent = file.name;
   resultEl.style.display = 'block';
-  chipsEl.innerHTML = '<span class="exif-loading">▌ EXIF 정보를 읽는 중...</span>';
+  chipsEl.innerHTML = '<span class="exif-loading">Reading photo metadata…</span>';
   msgEl.textContent = '';
   applyBtn.style.display = 'none';
   exifPending = null;
@@ -419,7 +446,7 @@ async function loadExif(input) {
       const hasExif = fnum != null || etime != null || iso != null;
 
       if (!hasExif) {
-        chipsEl.innerHTML = '<span class="exif-error">⚠ 셔터속도·조리개·ISO 정보를 찾을 수 없어요.<br><small style="font-size:0.62rem;color:var(--text-dim);">라이트룸 등 편집 프로그램에서 EXIF가 제거됐을 수 있습니다. 카메라 원본 JPG를 사용해주세요.</small></span>';
+        chipsEl.innerHTML = '<span class="exif-error">No shutter, aperture or ISO metadata found.<br><small style="font-size:0.8rem;color:var(--text-dim);">Editing apps may remove metadata. Try an original camera JPEG.</small></span>';
         return;
       }
 
@@ -434,30 +461,31 @@ async function loadExif(input) {
       exifPending = complete ? { sIdx, aIdx, iIdx } : null;
 
       chipsEl.innerHTML = `
-        <div class="exif-chip"><span>셔터속도</span>${sIdx != null ? SHUTTERS[sIdx].label : '—'}</div>
-        <div class="exif-chip"><span>조리개</span>${aIdx != null ? APERTURES[aIdx].label : '—'}</div>
-        <div class="exif-chip"><span>ISO</span>${iIdx != null ? 'ISO ' + ISOS[iIdx].toLocaleString() : '—'}</div>
+        <div class="exif-chip"><span>Shutter</span>${sIdx != null ? SHUTTERS[sIdx].label : '—'}</div>
+        <div class="exif-chip"><span>Aperture</span>${aIdx != null ? APERTURES[aIdx].label : '—'}</div>
+        <div class="exif-chip"><span>ISO</span>${iIdx != null ? 'ISO ' + ISOS[iIdx].toLocaleString('en-US') : '—'}</div>
       `;
 
       const rawParts = [];
-      if (etime != null) rawParts.push('셔터 ' + formatShutter(etime));
+      if (etime != null) rawParts.push('Shutter ' + formatShutter(etime));
       if (fnum  != null) rawParts.push('f/' + fnum);
       if (iso   != null) rawParts.push('ISO ' + iso);
-      msgEl.textContent = rawParts.length ? '📸 원본 EXIF: ' + rawParts.join('  ·  ') : '';
+      msgEl.textContent = rawParts.length ? 'Original metadata: ' + rawParts.join('  ·  ') : '';
 
       applyBtn.style.display = complete ? 'inline-block' : 'none';
-      if (!complete) msgEl.textContent += ' · 촬영 정보가 일부 누락되어 설정을 적용할 수 없습니다.';
+      if (!complete) msgEl.textContent += ' · Some settings are missing. All three are needed to apply a photo.';
 
     } catch (err) {
       console.error(err);
       // Error messages must not be interpolated into innerHTML.
-      chipsEl.textContent = '⚠ EXIF를 읽지 못했습니다. ' + (err.message || '다른 사진으로 시도해주세요.');
+      chipsEl.textContent = 'Could not read photo metadata. ' + (err.message || 'Try another photo.');
     }
   });
 }
 
 function applyExif() {
   if (!exifPending) return;
+  activePreset = null;
   const { sIdx, aIdx, iIdx } = exifPending;
   locks = { shutter: true, aperture: true, iso: false };
   if (sIdx != null) idx.shutter  = sIdx;
@@ -468,11 +496,11 @@ function applyExif() {
   updateUI();
 
   const btn = document.getElementById('exif-apply-btn');
-  btn.textContent = '✓ 적용됨';
+  btn.textContent = 'Settings applied';
   btn.style.background = 'var(--accent)';
-  btn.style.color = '#000';
+  btn.style.color = '#fff';
   setTimeout(() => {
-    btn.textContent = '이 세팅 계산기에 적용하기 ↗';
+    btn.textContent = 'Apply photo settings';
     btn.style.background = '';
     btn.style.color = '';
   }, 1500);

@@ -14,7 +14,8 @@ function makeApp() {
     getElementById(id) {
       if (!nodes.has(id)) nodes.set(id, {
         value: "", textContent: "", innerHTML: "", className: "", style: {},
-        classList: { add() {}, remove() {}, toggle() {} }
+        classList: { add() {}, remove() {}, toggle() {} },
+        attributes: {}, setAttribute(name, value) { this.attributes[name] = value; }
       });
       return nodes.get(id);
     }
@@ -79,9 +80,9 @@ test("desktop and mobile describe EV as settings, not overexposure diagnosis", (
   const app = makeApp();
   const judge = app.document.getElementById("judge-desc").textContent;
   const mobile = app.document.getElementById("mbb-text").textContent;
-  assert.ok(judge.includes("장면 밝기"));
-  assert.ok(mobile.includes("실제 노출"));
-  assert.ok(!mobile.includes("과노출 심각"));
+  assert.ok(judge.includes("scene brightness"));
+  assert.ok(mobile.includes("Actual exposure"));
+  assert.ok(!mobile.includes("overexposed"));
 });
 
 
@@ -104,7 +105,7 @@ test("partial EXIF cannot silently mix previous slider settings", async () => {
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(app.run("exifPending"), null);
   assert.equal(app.document.getElementById("exif-apply-btn").style.display, "none");
-  assert.ok(app.document.getElementById("exif-msg").textContent.includes("누락"));
+  assert.ok(app.document.getElementById("exif-msg").textContent.includes("missing"));
 });
 
 test("EXIF CDN failure gives a recoverable message instead of hanging", async () => {
@@ -113,7 +114,7 @@ test("EXIF CDN failure gives a recoverable message instead of hanging", async ()
   app.document.head = { appendChild(script) { script.onerror(new Error("offline")); } };
   app.run('loadExif({ files: [{ name: "offline.jpg" }] })');
   await new Promise(resolve => setImmediate(resolve));
-  assert.ok(app.document.getElementById("exif-chips").textContent.includes("불러오지 못했습니다"));
+  assert.ok(app.document.getElementById("exif-chips").textContent.includes("Could not load"));
 });
 
 
@@ -138,4 +139,43 @@ test("equivalent exposure rows report bounded quantization residuals", () => {
   for (const delta of deltas) {
     assert.ok(Math.abs(delta) <= 0.5, "Displayed EV residual must not exceed half a stop");
   }
+});
+
+test("English interface declares its language and names all camera controls", () => {
+  const html = fs.readFileSync(path.join(root, "exposure-index.html"), "utf8");
+  assert.match(html, /<html lang="en">/);
+  assert.doesNotMatch(html, /[가-힣]/);
+  for (const name of ["Shutter speed", "Aperture", "ISO"]) {
+    assert.ok(html.includes('aria-label="' + name + '"'));
+  }
+});
+
+test("mode buttons expose automatic state and slider values to assistive technology", () => {
+  const app = makeApp();
+  assert.equal(app.document.getElementById("lock-iso").attributes["aria-pressed"], "true");
+  assert.equal(app.document.getElementById("lock-shutter").attributes["aria-pressed"], "false");
+  app.run('toggleLock("aperture")');
+  assert.equal(app.document.getElementById("lock-aperture").textContent, "Auto");
+  assert.equal(app.document.getElementById("lock-aperture").attributes["aria-pressed"], "true");
+  assert.match(app.document.getElementById("sl-shutter").attributes["aria-valuetext"], /seconds/);
+});
+
+test("reset restores the initial reference, manual modes and values after edits", () => {
+  const app = makeApp();
+  const initial = app.state();
+  app.run('applyPreset("night"); toggleLock("shutter"); resetCalculator()');
+  const reset = app.state();
+  assert.deepEqual(JSON.parse(JSON.stringify(reset.idx)), JSON.parse(JSON.stringify(initial.idx)));
+  assert.deepEqual(JSON.parse(JSON.stringify(reset.locks)), JSON.parse(JSON.stringify(initial.locks)));
+  assert.equal(reset.targetEV, initial.targetEV);
+  assert.equal(app.run("activePreset"), null);
+});
+
+test("preset selection clears when a manual edit changes the scene settings", () => {
+  const app = makeApp();
+  app.run('applyPreset("sunny")');
+  assert.equal(app.document.getElementById("preset-sunny").attributes["aria-pressed"], "true");
+  app.document.getElementById("sl-shutter").value = "10";
+  app.run('onSliderChange("shutter")');
+  assert.equal(app.document.getElementById("preset-sunny").attributes["aria-pressed"], "false");
 });
