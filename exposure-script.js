@@ -104,8 +104,8 @@ function updateUI() {
   document.getElementById('ev-marker').style.left   = pct + '%';
 
   const sit = EV_SITUATIONS.find(s => ev <= s.max) || EV_SITUATIONS[EV_SITUATIONS.length - 1];
-  document.getElementById('ev-situation').textContent = sit.text;
-  document.getElementById('ev-status').textContent    = sit.status;
+  document.getElementById('ev-situation').textContent = '참고 장면: ' + sit.text + ' (실제 밝기 측정값 아님)';
+  document.getElementById('ev-status').textContent    = '설정 EV100';
 
   updateCombos(ev);
   updateJudge(ev);
@@ -159,48 +159,17 @@ function updateJudge(ev) {
   const iVal = ISOS[idx.iso];
   const aVal = APERTURES[idx.aperture].val;
 
-  let icon, title, desc, envText, panelClass;
-
-  if (ev < 2) {
-    // 블로그 별사진 예시: F/16, 30s, ISO 3200 → EV ≈ -2
-    icon = '🌑'; panelClass = 'judge-level-under2';
-    title   = '노출이 심각하게 부족해요';
-    desc    = '별 사진이나 완전 암흑 촬영처럼 극단적인 장노출 상황 외에는 사진이 거의 검게 나와요. 조리개를 최대로 열고, 셔터를 길게 하고, ISO를 높여야 해요.';
-    envText = '별 사진(천문 촬영), 완전한 암실 등 빛이 거의 없는 특수 환경 전용 세팅이에요.';
-  } else if (ev < 5) {
-    // 블로그 야간 시장 예시: F/4.5, 1/10s, ISO 1600 → EV ≈ 3.7
-    icon = '🌃'; panelClass = 'judge-level-under1';
-    title   = '야간·저조도 환경에서만 적합한 노출이에요';
-    desc    = '조명이 있는 야간 거리나 어두운 실내에서는 맞는 세팅이에요. 일반 실내나 낮 야외에서는 사진이 어둡게 나와요.';
-    envText = '야간 거리, 야시장, 무드등·촛불 조명 카페 등 어두운 환경에 맞는 세팅이에요.';
-  } else if (ev < 8) {
-    icon = '💡'; panelClass = 'judge-level-ok';
-    title   = '어두운 실내 촬영에 적합한 노출이에요';
-    desc    = '카페, 식당처럼 조명이 있는 실내 환경에서 좋은 사진을 얻을 수 있어요. 맑은 야외에서는 사진이 하얗게 날아갈 수 있어요.';
-    envText = '일반 실내 조명, 흐린 날 야외, 그늘진 환경에 잘 맞는 세팅이에요.';
-  } else if (ev < 12) {
-    icon = '✓'; panelClass = 'judge-level-ok';
-    title   = '적정 노출이에요';
-    desc    = '흐린 날이나 그늘진 야외, 밝은 실내 환경에 딱 맞는 조합이에요. 대부분의 일상 촬영에서 좋은 결과를 기대할 수 있어요.';
-    envText = '밝은 실내, 흐린 날 야외, 그늘진 공간에서 좋은 사진을 얻을 수 있어요.';
-  } else if (ev < 16) {
-    // 블로그 예시: F/10, 1/1000s, ISO 100(추정) → EV ≈ 16.6 (맑은 야외)
-    icon = '☀️'; panelClass = 'judge-level-ok';
-    title   = '맑은 야외 촬영에 적합한 노출이에요';
-    desc    = '맑은 날 직사광선 야외 촬영에 잘 맞는 조합이에요. (Sunny 16 법칙: 맑은 날 ISO 100 기준 f/16, 1/100s가 기준이에요.) 실내에서 이 세팅을 쓰면 사진이 밝게 날아가요.';
-    envText = '맑은 날 야외, 직사광선 아래 공원·해변·운동장 등에서 최적인 세팅이에요.';
-  } else if (ev < 18) {
-    // 블로그 예시: F/7.1, 1/400s → 하늘이 날아가는 과노출
-    icon = '⚡'; panelClass = 'judge-level-over1';
-    title   = '대부분 환경에서 과노출이 될 수 있어요';
-    desc    = '눈밭이나 해변 직사광선처럼 매우 밝은 환경에서만 적합해요. 일반 야외나 실내에서는 밝은 부분(하늘, 조명)이 하얗게 날아가요.';
-    envText = '눈밭, 흰 모래사장, 강한 반사광이 있는 극단적 야외 환경에서만 써요.';
-  } else {
-    icon = '🔆'; panelClass = 'judge-level-over2';
-    title   = '노출이 심각하게 과다해요';
-    desc    = '이 조합으로는 거의 모든 환경에서 사진이 하얗게 날아가요. 셔터 속도를 더 빠르게 하거나, 조리개를 더 조이거나, ISO를 낮춰야 해요.';
-    envText = '일반적인 촬영 환경에서는 사용하기 어려운 극단적 세팅이에요.';
-  }
+  // EV100 describes the selected exposure settings, not the measured scene brightness.
+  // Without scene luminance, over/underexposure cannot be determined.
+  const icon = '◎';
+  const panelClass = 'judge-level-ok';
+  const title = '카메라 설정 EV100';
+  const desc = '현재 셔터 속도, 조리개, ISO 조합의 설정 EV입니다. 실제 사진의 노출이 적절한지는 장면 밝기와 측광 결과를 함께 확인해야 합니다.';
+  const envText = ev < 5
+    ? '낮은 EV 설정은 어두운 장면에서 자주 사용되지만, 적절한 노출을 보장하지는 않습니다.'
+    : ev < 12
+      ? '중간 EV 설정입니다. 촬영 환경과 카메라의 노출계를 함께 확인하세요.'
+      : '높은 EV 설정은 밝은 장면에서 자주 사용되지만, 적절한 노출을 보장하지는 않습니다.';
 
   const needlePct = Math.min(100, Math.max(0, (ev / 20) * 100));
   document.getElementById('judge-needle').style.left = needlePct + '%';
@@ -217,7 +186,7 @@ function updateJudge(ev) {
   // ── ISO 노이즈 경고 ──
   // 블로그 기준: 주간 ISO 100~400 충분, 일몰·야간 400~800, 심야 고ISO
   if (iVal >= 12800) {
-    warnings.push('⚠ ISO ' + iVal.toLocaleString() + ' — 노이즈(화면 입자)가 매우 심해져 화질이 크게 떨어져요. 불가피한 경우가 아니면 ISO를 낮추세요.');
+    warnings.push('△ ISO ' + iVal.toLocaleString() + ' — 높은 ISO에서는 카메라와 촬영 조건에 따라 노이즈가 증가할 수 있습니다.');
   } else if (iVal >= 3200) {
     warnings.push('△ ISO ' + iVal.toLocaleString() + ' — 노이즈가 생길 수 있어요. 조리개를 더 열거나 셔터를 느리게 하면 ISO를 낮출 수 있어요.');
   }
@@ -227,7 +196,7 @@ function updateJudge(ev) {
   // 30초=30, 1/30초=0.033, 1/1000초=0.001
   // 버그 수정: >= 로 비교해야 "느린 셔터"를 잡을 수 있음
   if (sVal >= 1) {
-    warnings.push('⚠ 셔터 ' + SHUTTERS[idx.shutter].label + ' — 매우 느린 셔터예요. 반드시 삼각대가 필요하며, 피사체가 움직이면 모션 블러가 생겨요. (별, 야경, 빛줄기 등 장노출 촬영에는 의도적으로 사용하기도 해요.)');
+    warnings.push('△ 셔터 ' + SHUTTERS[idx.shutter].label + ' — 장노출입니다. 손떨림과 피사체 움직임에 주의하고, 필요하면 삼각대를 사용하세요.');
   } else if (sVal >= 1/30) {
     warnings.push('⚠ 셔터 ' + SHUTTERS[idx.shutter].label + ' — 느린 셔터로 손떨림이 생길 수 있어요. 삼각대를 사용하거나 단단히 고정하세요. 움직이는 피사체는 흐릿하게 찍혀요.');
   } else if (sVal >= 1/60) {
@@ -237,7 +206,7 @@ function updateJudge(ev) {
 
   // ── 조리개 회절 경고 ──
   if (aVal >= 16) {
-    warnings.push('△ 조리개 ' + APERTURES[idx.aperture].label + ' — 너무 조이면 렌즈 회절 현상으로 오히려 사진이 뿌옇게 될 수 있어요. 보통 f/11 이하를 권장해요.');
+    warnings.push('△ 조리개 ' + APERTURES[idx.aperture].label + ' — 회절에 따른 선명도 저하는 센서와 렌즈에 따라 달라질 수 있습니다.');
   }
 
   document.getElementById('judge-warnings').innerHTML = warnings.map(w =>
@@ -297,19 +266,10 @@ function updateMobileUI(ev) {
   if (fillEl)   fillEl.style.width        = pct + '%';
   if (needleEl) needleEl.style.left       = pct + '%';
 
-  // 판정 레벨
-  let lvlClass, icon, text;
-  if      (ev < 2)  { lvlClass='mbb-under2'; icon='🌑'; text='노출 심각하게 부족'; }
-  else if (ev < 5)  { lvlClass='mbb-under1'; icon='🌃'; text='노출 부족 가능성'; }
-  else if (ev < 8)  { lvlClass='mbb-ok';     icon='💡'; text='저조도 실내 적합'; }
-  else if (ev < 12) { lvlClass='mbb-ok';     icon='✓';  text='적정 노출'; }
-  else if (ev < 16) { lvlClass='mbb-ok';     icon='☀️'; text='맑은 야외 적합'; }
-  else if (ev < 18) { lvlClass='mbb-over1';  icon='⚡'; text='과노출 가능성'; }
-  else              { lvlClass='mbb-over2';  icon='🔆'; text='과노출 심각'; }
-
-  bar.className = 'mobile-bottom-bar ' + lvlClass;
-  if (iconEl) iconEl.textContent = icon;
-  if (textEl) textEl.textContent = text;
+  // Scene brightness is unknown: avoid a false exposure verdict.
+  bar.className = 'mobile-bottom-bar mbb-ok';
+  if (iconEl) iconEl.textContent = 'EV';
+  if (textEl) textEl.textContent = '설정 EV100 · 실제 노출은 장면에 따라 다름';
 }
 
 /** 모바일 초기화 */
