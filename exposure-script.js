@@ -144,14 +144,19 @@ function updateCombos(ev) {
   selISOs.forEach(iso => {
     selAps.forEach(ap => {
       const t = (ap * ap) / Math.pow(2, ev + Math.log2(iso / 100));
-      if (t < 0.00005 || t > 60) return;
+      const minShutter = SHUTTERS[SHUTTERS.length - 1].val;
+      const maxShutter = SHUTTERS[0].val;
+      if (t < minShutter || t > maxShutter) return;
       const si = ExposureCore.nearestIndex(SHUTTERS, t);
+      const deltaEV = calcEV(SHUTTERS[si].val, ap, iso) - ev;
+      // Do not call a combination "equivalent" when rounding exceeds 0.5 stop.
+      if (Math.abs(deltaEV) > 0.5) return;
       let tag = '';
       if      (t >= 1/30)   tag = '<span class="tag tag-motion">모션블러</span>';
       else if (t <= 1/1000) tag = '<span class="tag tag-freeze">순간포착</span>';
       else if (ap <= 2.8)   tag = '<span class="tag tag-portrait">아웃포커싱</span>';
       else if (ap >= 11)    tag = '<span class="tag tag-landscape">풍경</span>';
-      combos.push({ shutter: SHUTTERS[si].label, aperture: 'f/' + ap, iso: iso.toLocaleString(), tag });
+      combos.push({ shutter: SHUTTERS[si].label, aperture: 'f/' + ap, iso: iso.toLocaleString(), tag, deltaEV });
     });
   });
 
@@ -169,7 +174,7 @@ function updateCombos(ev) {
   tbody.innerHTML = filtered.map(c => {
     const active = c.shutter === cS && c.aperture === cA && c.iso === cI;
     return `<tr class="${active ? 'active-row' : ''}">
-      <td>${c.shutter}</td><td>${c.aperture}</td><td>ISO ${c.iso}</td><td>${c.tag || '—'}</td>
+      <td>${c.shutter} <small class="ev-delta">ΔEV ${c.deltaEV >= 0 ? '+' : ''}${c.deltaEV.toFixed(2)}</small></td><td>${c.aperture}</td><td>ISO ${c.iso}</td><td>${c.tag || '—'}</td>
     </tr>`;
   }).join('');
 }
