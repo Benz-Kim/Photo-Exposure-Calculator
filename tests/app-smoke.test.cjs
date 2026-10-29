@@ -83,3 +83,35 @@ test("desktop and mobile describe EV as settings, not overexposure diagnosis", (
   assert.ok(mobile.includes("실제 노출"));
   assert.ok(!mobile.includes("과노출 심각"));
 });
+
+
+test("complete EXIF is accepted and can establish a fresh target EV", async () => {
+  const app = makeApp();
+  app.run("window.exifr = { parse: async () => ({ FNumber: 2.8, ExposureTime: 1/125, ISO: 400 }) }");
+  app.run('loadExif({ files: [{ name: "camera.jpg" }] })');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.ok(app.run("exifPending !== null"));
+  assert.equal(app.document.getElementById("exif-apply-btn").style.display, "inline-block");
+  app.run("applyExif()");
+  const state = app.state();
+  assert.ok(Math.abs(state.solveMeta.residualEV) < 1e-8);
+});
+
+test("partial EXIF cannot silently mix previous slider settings", async () => {
+  const app = makeApp();
+  app.run("window.exifr = { parse: async () => ({ FNumber: 2.8 }) }");
+  app.run('loadExif({ files: [{ name: "partial.jpg" }] })');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(app.run("exifPending"), null);
+  assert.equal(app.document.getElementById("exif-apply-btn").style.display, "none");
+  assert.ok(app.document.getElementById("exif-msg").textContent.includes("누락"));
+});
+
+test("EXIF CDN failure gives a recoverable message instead of hanging", async () => {
+  const app = makeApp();
+  app.document.createElement = () => ({});
+  app.document.head = { appendChild(script) { script.onerror(new Error("offline")); } };
+  app.run('loadExif({ files: [{ name: "offline.jpg" }] })');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.ok(app.document.getElementById("exif-chips").textContent.includes("불러오지 못했습니다"));
+});
