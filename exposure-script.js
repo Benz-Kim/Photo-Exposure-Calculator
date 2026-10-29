@@ -63,14 +63,29 @@ const PRESETS = {
 // ── 2. 상태 ──
 let locks = { shutter: true, aperture: true, iso: false };
 let idx   = { shutter: 12, aperture: 5, iso: 3 };
+const SETTING_OPTIONS = { shutter: SHUTTERS, aperture: APERTURES, iso: ISOS };
 
-// ── 3. EV 계산 ──
+// Preserve the EV100 of the initial settings; the unlocked control is solved
+// against this target whenever either locked control changes.
+let targetEV = ExposureCore.calculateEV(
+  SHUTTERS[idx.shutter].val, APERTURES[idx.aperture].val, ISOS[idx.iso]
+);
+let solveMeta = null;
+
+// ── 3. Pure EV model integration ──
 function calcEV(s, a, i) {
-  return Math.log2((a * a) / s) - Math.log2(i / 100);
+  return ExposureCore.calculateEV(s, a, i);
+}
+
+function solveAutoParameter() {
+  const unlocked = Object.keys(locks).find(k => !locks[k]);
+  solveMeta = ExposureCore.resolveSetting(unlocked, targetEV, idx, SETTING_OPTIONS);
+  idx[unlocked] = solveMeta.index;
 }
 
 // ── 4. UI 업데이트 ──
 function updateUI() {
+  solveAutoParameter();
   document.getElementById('sl-shutter').value  = idx.shutter;
   document.getElementById('sl-aperture').value = idx.aperture;
   document.getElementById('sl-iso').value      = idx.iso;
@@ -105,7 +120,10 @@ function updateUI() {
 
   const sit = EV_SITUATIONS.find(s => ev <= s.max) || EV_SITUATIONS[EV_SITUATIONS.length - 1];
   document.getElementById('ev-situation').textContent = '참고 장면: ' + sit.text + ' (실제 밝기 측정값 아님)';
-  document.getElementById('ev-status').textContent    = '설정 EV100';
+  document.getElementById('ev-status').textContent = Math.abs(solveMeta.residualEV) >= 0.05
+    ? '설정 EV100 · 목표와 ' + Math.abs(solveMeta.residualEV).toFixed(2)
+      + '스톱 차이' + (solveMeta.rangeLimited ? ' (설정 범위 제한)' : '')
+    : '설정 EV100 · 목표 유지';
 
   updateCombos(ev);
   updateJudge(ev);
@@ -123,8 +141,7 @@ function updateCombos(ev) {
     selAps.forEach(ap => {
       const t = (ap * ap) / Math.pow(2, ev + Math.log2(iso / 100));
       if (t < 0.00005 || t > 60) return;
-      const si = SHUTTERS.reduce((b, s, i) =>
-        Math.abs(s.val - t) < Math.abs(SHUTTERS[b].val - t) ? i : b, 0);
+      const si = ExposureCore.nearestIndex(SHUTTERS, t);
       let tag = '';
       if      (t >= 1/30)   tag = '<span class="tag tag-motion">모션블러</span>';
       else if (t <= 1/1000) tag = '<span class="tag tag-freeze">순간포착</span>';
@@ -306,21 +323,7 @@ function onSliderChange(key) {
 }
 
 function toggleLock(key) {
-  const lockedCount = Object.values(locks).filter(Boolean).length;
-  if (locks[key]) {
-    if (lockedCount === 2) locks[key] = false;
-  } else {
-    locks[key] = true;
-    if (Object.values(locks).filter(Boolean).length === 3) {
-      const others = Object.keys(locks).filter(k => k !== key && locks[k]);
-      locks[others[0]] = false;
-    }
-  }
-  const lockedKeys = Object.keys(locks).filter(k => locks[k]);
-  if (lockedKeys.length < 2) {
-    const cand = Object.keys(locks).find(k => !locks[k] && k !== key);
-    if (cand) locks[cand] = true;
-  }
+  locks = ExposureCore.transitionLocks(locks, key);
   updateUI();
 }
 
@@ -331,6 +334,7 @@ function applyPreset(name) {
   idx.shutter  = p.shutter;
   idx.aperture = p.aperture;
   idx.iso      = p.iso;
+  targetEV = calcEV(SHUTTERS[idx.shutter].val, APERTURES[idx.aperture].val, ISOS[idx.iso]);
   updateUI();
 }
 
@@ -422,6 +426,8 @@ function applyExif() {
   if (sIdx != null) idx.shutter  = sIdx;
   if (aIdx != null) idx.aperture = aIdx;
   if (iIdx != null) idx.iso      = iIdx;
+  // Import establishes a new reference setting instead of using a stale target.
+  targetEV = calcEV(SHUTTERS[idx.shutter].val, APERTURES[idx.aperture].val, ISOS[idx.iso]);
   updateUI();
 
   const btn = document.getElementById('exif-apply-btn');
