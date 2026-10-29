@@ -70,3 +70,33 @@ These checks are **not** evidence that the app passed real-camera EXIF samples, 
 ## Reporting standard
 
 Do not claim a test passed until it has been run. For each test session, record the date, commit SHA, browser/device, steps, expected result, actual result, and any issue found. When fixing a defect, document the reproduction steps and the change that resolved it.
+
+## Exposure Lab English interface — 2026-10-29
+
+Validated locally on the English interface revision, using Node 24.19.0 and the
+system Chromium through Playwright:
+
+- `node --test tests/*.test.cjs`: **24 passed, 0 failed**, including the original
+  numerical/integration suite and new language, mode accessibility, reset and
+  preset-state regression checks.
+- `node tests/browser-smoke.cjs` against a Python static server on port 5501:
+  passed. Verified English language/text, three desktop columns, keyboard-driven
+  solving, Auto/Manual accessibility state, all five presets, reset, no page
+  overflow at 320/390/640/768/1024 px, mobile panel selection and return to desktop.
+- The real metadata parser loaded from jsDelivr. A tiny PNG without camera
+  metadata produced a recoverable English message and no Apply action.
+- axe-core 4.10.2 automated WCAG 2 A/AA and 2.1 AA checks: **0 violations**
+  at both 1440 px and 390 px (28 passing rules per viewport).
+- No uncaught browser JavaScript exceptions or HTTP asset failures were observed.
+- Desktop and mobile full-page screenshots were visually inspected. The README
+  preview is a real desktop screenshot; the workflow SVG is an original diagram,
+  not a screenshot or a claim of physical camera testing.
+
+The optional browser check requires Playwright and Chromium already installed
+and a server started with `python3 -m http.server 5501 --bind 127.0.0.1` from the
+repository root. It does not add dependencies to the static application or to
+the dependency-free CI suite. Browser screenshots go to `/tmp`.
+
+Physical-camera JPEG coverage, screen-reader usability, other browser engines,
+and measured user outcomes remain unverified. Automated accessibility checks do
+not establish full WCAG conformance.

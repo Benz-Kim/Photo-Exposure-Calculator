@@ -4,7 +4,17 @@ An interactive, browser-based learning tool for exploring the relationship betwe
 
 **Live demo:** https://exposure-calculator.netlify.app/  
 **Source code:** https://github.com/Benz-Kim/Photo-Exposure-Calculator  
-**Engineering upgrade preview (PR #1):** https://deploy-preview-1--exposure-calculator.netlify.app/
+
+
+![Exposure Lab desktop interface: English camera controls, an adjustable exposure reference, and a live viewfinder illustration](docs/assets/exposure-lab-preview.png)
+
+The interface is designed for an English-speaking audience, with keyboard-operable controls, explicit Manual/Auto modes, mobile setting navigation and visible calculation limits. No account or build step is needed.
+
+## From settings to understanding
+
+![Exposure triangle workflow: choose two manual settings, solve the third with the EV100 model, snap to supported camera steps, and report the rounding difference](docs/assets/exposure-workflow.svg)
+
+A preset or complete photo metadata establishes the reference EV100. Two controls remain adjustable while the third is solved. The model reports rounding error rather than hiding the difference between a continuous equation and a real camera’s discrete settings.
 
 ## Why I built it
 
@@ -59,7 +69,13 @@ The calculator does not require a framework, package installation, or a build st
 3. Open index.html in a modern browser. It redirects to exposure-index.html.
 4. Alternatively, open exposure-index.html directly.
 
-No build command is required for this static site.
+No build command is required for this static site. To serve it locally:
+
+```sh
+python3 -m http.server 5501 --bind 127.0.0.1
+```
+
+Run the dependency-free checks with `node --test tests/*.test.cjs`. An optional real-browser check is available in `tests/browser-smoke.cjs` for environments with Playwright and Chromium; run it while the local server is running.
 
 ## Project structure
 
@@ -75,7 +91,7 @@ No build command is required for this static site.
 - docs/CHANGE_BREAKPOINTS.md — chronological, granular commit evidence.
 - docs/TESTING.md — verified CI results and outstanding manual checks.
 - netlify.toml — Netlify publish and root-route configuration.
-- favicon.svg and other assets — interface assets.
+- favicon.svg and docs/assets/ — the application icon, original workflow diagram and interface preview.
 
 ## Deployment
 

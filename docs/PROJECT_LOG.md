@@ -63,3 +63,15 @@ This log is intended to preserve the project's real development history and deci
 5. Fix verified defects and document each change with a commit.
 6. Add automated tests if a lightweight test setup can be introduced without making the static site harder to run.
 7. Capture genuine screenshots and a concise project demo for a portfolio or extracurricular activity submission.
+
+## 2026-10-29 — English Exposure Lab interface
+
+- Started from the latest merged solver implementation, preserving the pure
+  mathematics module and existing engineering history.
+- Replaced the public UI with an English, responsive camera-workbench interface.
+  Added explicit Manual/Auto modes, preset selection feedback, reset, named
+  controls, keyboard focus and a local-photo privacy explanation.
+- Replaced conflicting legacy stylesheet rules with one responsive stylesheet.
+- Added the original workflow SVG and a real interface preview to the root README.
+- Local evidence: 24 Node checks passed and real Chromium interaction/layout
+  smoke validation passed. See TESTING.md for scope and limitations.
