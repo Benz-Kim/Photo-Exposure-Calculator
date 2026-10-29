@@ -30,7 +30,7 @@ This document groups genuine, chronological commits by engineering question. It 
 - [f1356c7](https://github.com/Benz-Kim/Photo-Exposure-Calculator/commit/f1356c772dc104065467f692f54819138a850e57) — \`test(app): cover real script integration and EV target persistence\`
 - [413abc7](https://github.com/Benz-Kim/Photo-Exposure-Calculator/commit/413abc77c8345d3976080b618531d6bd6a5462ab) — \`ci: verify syntax and automated calculator tests on push and PR\`
 - Deliverable: Node-based test suite and GitHub Actions verification.
-- Evidence: [CI run #40869486242](https://github.com/Benz-Kim/Photo-Exposure-Calculator/actions/runs/40869486242) — **18 tests passed, 0 failed** on the tested feature revision.
+- Evidence: [CI run #40869977667](https://github.com/Benz-Kim/Photo-Exposure-Calculator/actions/runs/40869977667) — **20 tests passed, 0 failed** on the tested feature revision.
 
 ## BP-04 — Make the reference EV explicit
 
@@ -56,8 +56,11 @@ This document groups genuine, chronological commits by engineering question. It 
 
 **Question:** Can a reviewer trace what the software claims, the mathematical reasoning, the tested evidence, and the remaining uncertainties?
 
+- [d7c6ac7](https://github.com/Benz-Kim/Photo-Exposure-Calculator/commit/d7c6ac782aee7ddc699296647685d6a5e295d2f6) — `test(ui): verify target EV control and equivalent-row residual bounds`
+- Verified 20 passing automated tests on the updated branch at [CI run #40869977667](https://github.com/Benz-Kim/Photo-Exposure-Calculator/actions/runs/40869977667).
+
 - [79857df](https://github.com/Benz-Kim/Photo-Exposure-Calculator/commit/79857dfa8fe549ffc546d6f370c18f32b99140c6) — \`docs(math): derive EV100 inverses, invariants and falsifiable checks\`
-- [7b838c3](https://github.com/Benz-Kim/Photo-Exposure-Calculator/commit/7b838c3f3fa3f8087f813e860e33d43f2c9ebce3) — \`docs(test): record verified 18-test CI result separately from manual QA\`
+- [7b838c3](https://github.com/Benz-Kim/Photo-Exposure-Calculator/commit/7b838c3f3fa3f8087f813e860e33d43f2c9ebce3) — \`docs(test): record verified 20-test CI result separately from manual QA\`
 - Deliverable: engineering rationale, reproducible checks, and transparent CI evidence.
 
 ## Future breakpoints (not completed)
