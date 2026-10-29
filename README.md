@@ -87,7 +87,7 @@ Live deployment: https://exposure-calculator.netlify.app/
 
 The project evolved from a single-file prototype into separate HTML, CSS, and JavaScript files. That refactor made the code easier to navigate, but also surfaced the importance of consistent file paths and names. The current entry-point redirect and Netlify rewrite are intended to keep the deployed root URL working with the existing page filename.
 
-The engineering-upgrade branch includes automated unit and integration checks. [CI run #40869486242](https://github.com/Benz-Kim/Photo-Exposure-Calculator/actions/runs/40869486242) reported **18 passed, 0 failed** on the tested revision. These checks simulate browser behavior in Node.js; they do not replace validation on real devices or physical camera files.
+The engineering-upgrade branch includes automated unit and integration checks. [CI run #40869977667](https://github.com/Benz-Kim/Photo-Exposure-Calculator/actions/runs/40869977667) reported **20 passed, 0 failed** on the tested revision. These checks simulate browser behavior in Node.js; they do not replace validation on real devices or physical camera files.
 
 For an auditable explanation of changes, see [Development Breakpoints](docs/CHANGE_BREAKPOINTS.md).
 
