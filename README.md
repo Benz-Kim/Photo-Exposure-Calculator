@@ -3,7 +3,8 @@
 An interactive, browser-based learning tool for exploring the relationship between shutter speed, aperture, ISO, and exposure value (EV).
 
 **Live demo:** https://exposure-calculator.netlify.app/  
-**Source code:** https://github.com/Benz-Kim/Photo-Exposure-Calculator
+**Source code:** https://github.com/Benz-Kim/Photo-Exposure-Calculator  
+**Engineering upgrade preview (PR #1):** https://deploy-preview-1--exposure-calculator.netlify.app/
 
 ## Why I built it
 
@@ -14,12 +15,13 @@ This project combines a practical photography problem with mathematical modeling
 ## Features
 
 - **Interactive exposure controls:** Adjust shutter speed, aperture, and ISO with sliders.
-- **Two-parameter locking:** Lock two settings and calculate the third setting automatically.
-- **Exposure-value feedback:** Calculate EV and visualize it on a scale.
+- **Two-parameter locking:** Keep exactly two camera settings user-adjustable and solve the third toward a reference EV100.
+- **Adjustable EV100 reference:** Use a separate target control to intentionally change the reference exposure setting.
+- **Explicit calculation precision:** Display reference-vs-realized EV error when a discrete camera value cannot match the exact algebraic solution.
 - **Contextual guidance:** Display a rough lighting-context interpretation and warnings for settings such as high ISO, slow shutter speeds, and narrow apertures.
-- **Equivalent-exposure table:** Explore alternative shutter/aperture/ISO combinations for a similar EV, with labels describing likely photographic effects.
+- **Equivalent-exposure table:** Compare feasible near-equivalent combinations, filtered to at most 0.5 stop of rounding error, with an EV residual shown for each row.
 - **Shooting presets:** Start from Sunny, Indoor, Night, Portrait, or Sports settings.
-- **Photo EXIF import:** Read available shutter speed, aperture, and ISO metadata from an uploaded image, then apply the closest supported values to the calculator.
+- **Photo EXIF import:** Parse image metadata locally in the browser, display available fields, and apply settings when shutter speed, aperture, and ISO are all present. A parser library is loaded from an external CDN on demand.
 - **Responsive interface:** Provide a desktop layout and mobile-specific panel navigation.
 
 > The lighting guidance is educational and approximate. Actual exposure depends on scene luminance, metering, camera calibration, lens transmission, and creative intent.
@@ -36,7 +38,9 @@ Where:
 - t is shutter time in seconds.
 - ISO is sensor sensitivity.
 
-The application stores supported settings in discrete arrays. When a computed value does not exactly match a supported setting, it maps the result to the nearest available value. This makes the interface practical to use, while meaning the displayed settings may only approximate the mathematically exact solution.
+A pure mathematical module implements all three inverse equations. The application keeps a persistent EV100 target when either locked parameter changes. Because the interface offers discrete settings, the exact solution is snapped to the nearest supported value **in logarithmic stop distance**, and the difference between target and actual EV100 is reported.
+
+Mathematical derivations, state invariants, and validation limits are explained in [Engineering Rationale](docs/ENGINEERING_RATIONALE.md).
 
 ## Technology
 
@@ -62,7 +66,14 @@ No build command is required for this static site.
 - index.html — entry-point redirect.
 - exposure-index.html — page structure and interface.
 - exposure-style.css — visual styling and responsive layout.
-- exposure-script.js — exposure calculations, interaction state, presets, guidance, equivalent combinations, mobile UI, and EXIF import.
+- exposure-core.js — pure EV100 equations, inverse solver, logarithmic nearest-setting selection, and lock transitions.
+- exposure-script.js — interface state, presets, guidance, equivalent combinations, mobile UI, and EXIF import.
+- tests/exposure-core.test.cjs — numerical, boundary and lock-invariant tests.
+- tests/app-smoke.test.cjs — simulated-browser integration and EXIF failure tests.
+- .github/workflows/verify.yml — syntax and test automation.
+- docs/ENGINEERING_RATIONALE.md — mathematical argument and limitations.
+- docs/CHANGE_BREAKPOINTS.md — chronological, granular commit evidence.
+- docs/TESTING.md — verified CI results and outstanding manual checks.
 - netlify.toml — Netlify publish and root-route configuration.
 - favicon.svg and other assets — interface assets.
 
@@ -76,17 +87,19 @@ Live deployment: https://exposure-calculator.netlify.app/
 
 The project evolved from a single-file prototype into separate HTML, CSS, and JavaScript files. That refactor made the code easier to navigate, but also surfaced the importance of consistent file paths and names. The current entry-point redirect and Netlify rewrite are intended to keep the deployed root URL working with the existing page filename.
 
-The next improvement phase should prioritize repeatable validation: verify calculations and lock-state behavior, test EXIF files with missing metadata, check mobile and desktop layouts, and record the results in the project documentation before describing those checks as completed.
+The engineering-upgrade branch includes automated unit and integration checks. [CI run #40869977667](https://github.com/Benz-Kim/Photo-Exposure-Calculator/actions/runs/40869977667) reported **20 passed, 0 failed** on the tested revision. These checks simulate browser behavior in Node.js; they do not replace validation on real devices or physical camera files.
+
+For an auditable explanation of changes, see [Development Breakpoints](docs/CHANGE_BREAKPOINTS.md).
 
 ## Limitations and next steps
 
 - Lighting-context descriptions are heuristics, not a replacement for a camera light meter.
 - The calculator maps results to discrete supported values rather than presenting arbitrary continuous values.
 - EXIF import depends on metadata being present in the image and on the external parser CDN being reachable.
-- Add automated checks for calculation edge cases and the invariant that exactly two parameters are locked.
+- Expand automated checks to cover more visual/UI regressions and user interaction sequences.
 - Add a documented manual test checklist and record browser/device coverage.
 - Review accessibility, including keyboard navigation, visible focus, semantic labels, and screen-reader feedback.
-- Consider adding a clear privacy note for image metadata processing and verifying whether image bytes remain local throughout EXIF parsing.
+- Confirm and document privacy behavior and third-party CDN requests for imported image metadata.
 
 ## Learning outcomes
 

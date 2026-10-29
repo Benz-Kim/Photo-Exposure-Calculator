@@ -63,14 +63,33 @@ const PRESETS = {
 // ── 2. 상태 ──
 let locks = { shutter: true, aperture: true, iso: false };
 let idx   = { shutter: 12, aperture: 5, iso: 3 };
+const SETTING_OPTIONS = { shutter: SHUTTERS, aperture: APERTURES, iso: ISOS };
 
-// ── 3. EV 계산 ──
+// Preserve the EV100 of the initial settings; the unlocked control is solved
+// against this target whenever either locked control changes.
+let targetEV = ExposureCore.calculateEV(
+  SHUTTERS[idx.shutter].val, APERTURES[idx.aperture].val, ISOS[idx.iso]
+);
+let solveMeta = null;
+
+// ── 3. Pure EV model integration ──
 function calcEV(s, a, i) {
-  return Math.log2((a * a) / s) - Math.log2(i / 100);
+  return ExposureCore.calculateEV(s, a, i);
+}
+
+function solveAutoParameter() {
+  const unlocked = Object.keys(locks).find(k => !locks[k]);
+  solveMeta = ExposureCore.resolveSetting(unlocked, targetEV, idx, SETTING_OPTIONS);
+  idx[unlocked] = solveMeta.index;
 }
 
 // ── 4. UI 업데이트 ──
 function updateUI() {
+  solveAutoParameter();
+  const targetSlider = document.getElementById('sl-target-ev');
+  const targetLabel = document.getElementById('target-ev-value');
+  if (targetSlider) targetSlider.value = targetEV.toFixed(1);
+  if (targetLabel) targetLabel.textContent = targetEV.toFixed(1);
   document.getElementById('sl-shutter').value  = idx.shutter;
   document.getElementById('sl-aperture').value = idx.aperture;
   document.getElementById('sl-iso').value      = idx.iso;
@@ -105,7 +124,10 @@ function updateUI() {
 
   const sit = EV_SITUATIONS.find(s => ev <= s.max) || EV_SITUATIONS[EV_SITUATIONS.length - 1];
   document.getElementById('ev-situation').textContent = '참고 장면: ' + sit.text + ' (실제 밝기 측정값 아님)';
-  document.getElementById('ev-status').textContent    = '설정 EV100';
+  document.getElementById('ev-status').textContent = Math.abs(solveMeta.residualEV) >= 0.05
+    ? '설정 EV100 · 목표와 ' + Math.abs(solveMeta.residualEV).toFixed(2)
+      + '스톱 차이' + (solveMeta.rangeLimited ? ' (설정 범위 제한)' : '')
+    : '설정 EV100 · 목표 유지';
 
   updateCombos(ev);
   updateJudge(ev);
@@ -122,15 +144,19 @@ function updateCombos(ev) {
   selISOs.forEach(iso => {
     selAps.forEach(ap => {
       const t = (ap * ap) / Math.pow(2, ev + Math.log2(iso / 100));
-      if (t < 0.00005 || t > 60) return;
-      const si = SHUTTERS.reduce((b, s, i) =>
-        Math.abs(s.val - t) < Math.abs(SHUTTERS[b].val - t) ? i : b, 0);
+      const minShutter = SHUTTERS[SHUTTERS.length - 1].val;
+      const maxShutter = SHUTTERS[0].val;
+      if (t < minShutter || t > maxShutter) return;
+      const si = ExposureCore.nearestIndex(SHUTTERS, t);
+      const deltaEV = calcEV(SHUTTERS[si].val, ap, iso) - ev;
+      // Do not call a combination "equivalent" when rounding exceeds 0.5 stop.
+      if (Math.abs(deltaEV) > 0.5) return;
       let tag = '';
       if      (t >= 1/30)   tag = '<span class="tag tag-motion">모션블러</span>';
       else if (t <= 1/1000) tag = '<span class="tag tag-freeze">순간포착</span>';
       else if (ap <= 2.8)   tag = '<span class="tag tag-portrait">아웃포커싱</span>';
       else if (ap >= 11)    tag = '<span class="tag tag-landscape">풍경</span>';
-      combos.push({ shutter: SHUTTERS[si].label, aperture: 'f/' + ap, iso: iso.toLocaleString(), tag });
+      combos.push({ shutter: SHUTTERS[si].label, aperture: 'f/' + ap, iso: iso.toLocaleString(), tag, deltaEV });
     });
   });
 
@@ -148,7 +174,7 @@ function updateCombos(ev) {
   tbody.innerHTML = filtered.map(c => {
     const active = c.shutter === cS && c.aperture === cA && c.iso === cI;
     return `<tr class="${active ? 'active-row' : ''}">
-      <td>${c.shutter}</td><td>${c.aperture}</td><td>ISO ${c.iso}</td><td>${c.tag || '—'}</td>
+      <td>${c.shutter} <small class="ev-delta">ΔEV ${c.deltaEV >= 0 ? '+' : ''}${c.deltaEV.toFixed(2)}</small></td><td>${c.aperture}</td><td>ISO ${c.iso}</td><td>${c.tag || '—'}</td>
     </tr>`;
   }).join('');
 }
@@ -299,6 +325,16 @@ window.addEventListener('resize', function() {
 
 // ── 7. 이벤트 핸들러 ──
 
+// Changing the reference EV intentionally changes desired brightness;
+// changing a locked camera parameter instead holds the reference EV steady.
+function onTargetEVChange() {
+  const slider = document.getElementById('sl-target-ev');
+  const value = Number(slider.value);
+  if (!Number.isFinite(value)) return;
+  targetEV = Math.max(-5, Math.min(20, value));
+  updateUI();
+}
+
 function onSliderChange(key) {
   if (!locks[key]) return;
   idx[key] = parseInt(document.getElementById('sl-' + key).value, 10);
@@ -306,21 +342,7 @@ function onSliderChange(key) {
 }
 
 function toggleLock(key) {
-  const lockedCount = Object.values(locks).filter(Boolean).length;
-  if (locks[key]) {
-    if (lockedCount === 2) locks[key] = false;
-  } else {
-    locks[key] = true;
-    if (Object.values(locks).filter(Boolean).length === 3) {
-      const others = Object.keys(locks).filter(k => k !== key && locks[k]);
-      locks[others[0]] = false;
-    }
-  }
-  const lockedKeys = Object.keys(locks).filter(k => locks[k]);
-  if (lockedKeys.length < 2) {
-    const cand = Object.keys(locks).find(k => !locks[k] && k !== key);
-    if (cand) locks[cand] = true;
-  }
+  locks = ExposureCore.transitionLocks(locks, key);
   updateUI();
 }
 
@@ -331,6 +353,7 @@ function applyPreset(name) {
   idx.shutter  = p.shutter;
   idx.aperture = p.aperture;
   idx.iso      = p.iso;
+  targetEV = calcEV(SHUTTERS[idx.shutter].val, APERTURES[idx.aperture].val, ISOS[idx.iso]);
   updateUI();
 }
 
@@ -339,12 +362,25 @@ function applyPreset(name) {
 
 let exifPending = null;
 
+let exifLoading = false;
+let exifWaiting = [];
+
+// One script request for concurrent imports; failed CDN loads are recoverable.
 function loadExifLib(callback) {
-  if (window.exifr) { callback(); return; }
-  const s = document.createElement('script');
-  s.src = 'https://cdn.jsdelivr.net/npm/exifr/dist/lite.umd.js';
-  s.onload = callback;
-  document.head.appendChild(s);
+  if (window.exifr) { callback(null); return; }
+  exifWaiting.push(callback);
+  if (exifLoading) return;
+  exifLoading = true;
+  const script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/npm/exifr/dist/lite.umd.js';
+  const finish = (err) => {
+    exifLoading = false;
+    const callbacks = exifWaiting.splice(0);
+    callbacks.forEach(fn => fn(err));
+  };
+  script.onload = () => finish(window.exifr ? null : new Error('EXIF 파서를 사용할 수 없습니다.'));
+  script.onerror = () => finish(new Error('EXIF 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하고 다시 시도해주세요.'));
+  document.head.appendChild(script);
 }
 
 function formatShutter(val) {
@@ -354,7 +390,7 @@ function formatShutter(val) {
 }
 
 async function loadExif(input) {
-  const file = input.files[0];
+  const file = input.files && input.files[0];
   if (!file) return;
 
   const filenameEl = document.getElementById('exif-filename');
@@ -370,14 +406,15 @@ async function loadExif(input) {
   applyBtn.style.display = 'none';
   exifPending = null;
 
-  loadExifLib(async function() {
+  loadExifLib(async function(loadError) {
     try {
+      if (loadError) throw loadError;
       // 옵션 없이 전체 파싱 → 가장 호환성 높음
       const exif = await window.exifr.parse(file);
 
-      const fnum  = exif && exif.FNumber     != null ? exif.FNumber     : null;
-      const etime = exif && exif.ExposureTime != null ? exif.ExposureTime : null;
-      const iso   = exif && exif.ISO         != null ? exif.ISO         : null;
+      const fnum = Number.isFinite(exif?.FNumber) && exif.FNumber > 0 ? exif.FNumber : null;
+      const etime = Number.isFinite(exif?.ExposureTime) && exif.ExposureTime > 0 ? exif.ExposureTime : null;
+      const iso = Number.isFinite(exif?.ISO) && exif.ISO > 0 ? exif.ISO : null;
 
       const hasExif = fnum != null || etime != null || iso != null;
 
@@ -388,11 +425,13 @@ async function loadExif(input) {
 
       // 슬라이더 인덱스 매핑
       let sIdx = null, aIdx = null, iIdx = null;
-      if (etime != null) sIdx = SHUTTERS.reduce((b,s,i)  => Math.abs(s.val - etime) < Math.abs(SHUTTERS[b].val - etime)    ? i : b, 0);
-      if (fnum  != null) aIdx = APERTURES.reduce((b,a,i) => Math.abs(a.val - fnum)  < Math.abs(APERTURES[b].val - fnum)    ? i : b, 0);
-      if (iso   != null) iIdx = ISOS.reduce((b,v,i)      => Math.abs(v - iso)        < Math.abs(ISOS[b] - iso)             ? i : b, 0);
+      if (etime != null) sIdx = ExposureCore.nearestIndex(SHUTTERS, etime);
+      if (fnum != null) aIdx = ExposureCore.nearestIndex(APERTURES, fnum);
+      if (iso != null) iIdx = ExposureCore.nearestIndex(ISOS, iso);
 
-      exifPending = { sIdx, aIdx, iIdx };
+      // Never combine partial EXIF with stale values from an earlier setting.
+      const complete = sIdx != null && aIdx != null && iIdx != null;
+      exifPending = complete ? { sIdx, aIdx, iIdx } : null;
 
       chipsEl.innerHTML = `
         <div class="exif-chip"><span>셔터속도</span>${sIdx != null ? SHUTTERS[sIdx].label : '—'}</div>
@@ -406,11 +445,13 @@ async function loadExif(input) {
       if (iso   != null) rawParts.push('ISO ' + iso);
       msgEl.textContent = rawParts.length ? '📸 원본 EXIF: ' + rawParts.join('  ·  ') : '';
 
-      applyBtn.style.display = 'inline-block';
+      applyBtn.style.display = complete ? 'inline-block' : 'none';
+      if (!complete) msgEl.textContent += ' · 촬영 정보가 일부 누락되어 설정을 적용할 수 없습니다.';
 
     } catch (err) {
       console.error(err);
-      chipsEl.innerHTML = '<span class="exif-error">⚠ EXIF를 읽는 중 오류가 발생했어요.<br><small style="font-size:0.62rem;color:var(--text-dim);">' + (err.message || String(err)) + '</small></span>';
+      // Error messages must not be interpolated into innerHTML.
+      chipsEl.textContent = '⚠ EXIF를 읽지 못했습니다. ' + (err.message || '다른 사진으로 시도해주세요.');
     }
   });
 }
@@ -422,6 +463,8 @@ function applyExif() {
   if (sIdx != null) idx.shutter  = sIdx;
   if (aIdx != null) idx.aperture = aIdx;
   if (iIdx != null) idx.iso      = iIdx;
+  // Import establishes a new reference setting instead of using a stale target.
+  targetEV = calcEV(SHUTTERS[idx.shutter].val, APERTURES[idx.aperture].val, ISOS[idx.iso]);
   updateUI();
 
   const btn = document.getElementById('exif-apply-btn');

@@ -2,6 +2,21 @@
 
 This document separates planned checks from verified results. A checkbox should be marked complete only after the behavior has been tested against the current deployed or local version.
 
+## Verified automated checks — 2026-10-29
+
+A GitHub Actions run on the feature branch completed successfully: [CI run #40869977667](https://github.com/Benz-Kim/Photo-Exposure-Calculator/actions/runs/40869977667).
+
+**Evidence:** 18 automated tests passed, 0 failed. Tests ran under Node.js 22 in GitHub Actions; browser behavior was simulated for integration checks. The test runner also performed syntax checks on `exposure-core.js` and `exposure-script.js`.
+
+- [x] Algebraic EV100 reference and one-stop relationships.
+- [x] All three inverse formulas at representative settings.
+- [x] Logarithmic nearest-index selection and boundaries.
+- [x] Multiple lock-state transitions preserving exactly two locked parameters.
+- [x] Simulated slider, preset, EV target, and status updates.
+- [x] Complete/partial EXIF data handling and CDN-load failure in a simulated environment.
+
+These checks are **not** evidence that the app passed real-camera EXIF samples, screen readers, or physical mobile devices.
+
 ## Manual test checklist
 
 ### Core calculator
@@ -50,7 +65,7 @@ This document separates planned checks from verified results. A checkbox should 
 
 | Date | Version / commit | Environment | Checks performed | Result / issues |
 |---|---|---|---|---|
-| Not yet recorded | — | — | — | Add an entry after performing checks |
+| 2026-10-29 | Feature PR #1 / commit `d7c6ac78` | GitHub Actions, Node.js 22 | Syntax + 20 unit/integration tests | **Pass: 20 / Fail: 0** — [run](https://github.com/Benz-Kim/Photo-Exposure-Calculator/actions/runs/40869977667) |
 
 ## Reporting standard
 
